@@ -36,7 +36,7 @@ public class Logging {
 
 	private static void writeLog(String str) {
 		File outFile = new File(Environment.getExternalStorageDirectory(),
-				"/SecLogFile.txt");
+				"/LogFile4WD.txt");
 		try {
 			FileWriter wrt = new FileWriter(outFile, true);
 			wrt.append(getCurrentTime() + " : " + str + "\n");

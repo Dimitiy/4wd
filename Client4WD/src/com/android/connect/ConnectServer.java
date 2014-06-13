@@ -1,4 +1,4 @@
-package com.android.client4wd;
+package com.android.connect;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -9,99 +9,27 @@ import java.net.InetAddress;
 import java.net.Socket;
 
 import android.content.Context;
-import android.hardware.usb.UsbManager;
 import android.os.AsyncTask;
 import android.util.Log;
-
-import com.hoho.android.usbserial.driver.UsbSerialDriver;
-import com.hoho.android.usbserial.driver.UsbSerialProber;
 
 public class ConnectServer {
 	String address = "0.0.0.0";
 	Socket socket;
-	private UsbManager usbManager;
-	private UsbSerialDriver device;
+	ConnectDevice connectDev;
 	private Context mContext;
+	
 	public final static String TAG = "ConnectServer";
 
 	// private Context mContext;
-	public ConnectServer(Context context, String address) {
+	public ConnectServer(Context context,String address) {
 		// TODO Автоматически созданная заглушка конструктора
 		this.address = address;
 		this.mContext = context;
-		usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+		connectDev = new ConnectDevice(mContext);
 		Connect connect = new Connect();
 		connect.execute(address);
 		// Get UsbManager from Android.
-
-	}
-
-	protected void onPause() {
-		// check if the device is already closed
-		if (device != null) {
-			try {
-				device.close();
-			} catch (IOException e) {
-				// we couldn't close the device, but there's nothing we can do
-				// about it!
-			}
-			// remove the reference to the device
-			device = null;
-		}
-	}
-
-	public void onResume() {
-		// get a USB to Serial device object
-		device = UsbSerialProber.acquire(usbManager);
-		if (device == null) {
-			// there is no device connected!
-			Log.d(TAG, "No USB serial device connected.");
-		} else {
-			try {
-				// open the device
-				device.open();
-				// set the communication speed
-				device.setBaudRate(115200); // make sure this matches your
-				// device's setting!
-			} catch (IOException err) {
-				Log.e(TAG, "Error setting up USB device: " + err.getMessage(),
-						err);
-				try {
-					// something failed, so try closing the device
-					device.close();
-				} catch (IOException err2) {
-					// couldn't close, but there's nothing more to do!
-				}
-				device = null;
-				return;
-			}
-		}
-	}
-
-	public void sendData(String message) {
-		byte[] dataToSend = message.getBytes();
-		Log.i(TAG, "Send data: " + message);
-
-		// remove spurious line endings from color bytes so the serial device
-		// doesn't get confused
-		for (int i = 0; i < dataToSend.length - 1; i++) {
-			if (dataToSend[i] == 0x0A) {
-				dataToSend[i] = 0x0B;
-				Log.i(TAG, "Send data: " + dataToSend[i]);
-
-			}
-		}
-		// send the color to the serial device
-		if (device != null) {
-			try {
-				device.write(dataToSend, 500);
-
-			} catch (IOException e) {
-				Log.e(TAG, "couldn't write color bytes to serial device");
-			}
-		} else {
-			Log.d(TAG, "device = null");
-		}
+		
 	}
 
 	public void connect(String address) {
@@ -149,7 +77,8 @@ public class ConnectServer {
 
 			while (true) {
 				line = in.readUTF(); // ждем пока сервер отошлет строку текста.
-				sendData(String.valueOf(line));
+				connectDev.onResume();
+				connectDev.sendData(String.valueOf(line));
 				Log.d("ConnectServ",
 						"The server was very polite. It sent me this : " + line);
 				Log.d("ConnectServ",

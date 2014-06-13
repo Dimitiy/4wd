@@ -1,5 +1,16 @@
 package com.android.client4wd;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.Collections;
+import java.util.List;
+
+import org.apache.http.conn.util.InetAddressUtils;
+
+import ru.yandex.yandexmapkit.MapController;
+import ru.yandex.yandexmapkit.MapView;
+import ru.yandex.yandexmapkit.overlay.location.MyLocationItem;
+import ru.yandex.yandexmapkit.overlay.location.OnMyLocationListener;
 import android.content.Context;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -14,18 +25,25 @@ import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.android.connect.ConnectDevice;
+import com.android.connect.ConnectServer;
+import com.android.location.GetLocation;
+import com.android.util.Logging;
 import com.example.client4wd.R;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends ActionBarActivity implements
+		OnMyLocationListener {
 	public final static String TAG = "Client4WD";
-
+	ConnectDevice connectDev;
+	GetLocation getLocation;
 	private int motorLeft = 0;
 	private int motorRight = 0;
-	private ToggleButton LightButton;
-	private ToggleButton buttonWifi;
+	private ToggleButton buttonWifi, LightButton;
 
 	private Button btn_forward, btn_backward, btn_left, btn_right;
 	private int pwmBtnMotorLeft; // left PWM constant value from settings
@@ -47,22 +65,32 @@ public class MainActivity extends ActionBarActivity {
 	Context context;
 	ConnectServer getSocket;
 	TextView text;
+	/** Called when the activity is first created. */
+	MapController mMapController;
+	RelativeLayout mView;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
+		// ------------start Service------------
+		// startService(new Intent(MainActivity.this, LocationTracker.class));
+		// locationTrack = new LocationTracker();
+		// -----------define element-------------
 		text = (TextView) findViewById(R.id.textView1);
 		context = getApplicationContext();
-		getSupportFragmentManager().beginTransaction()
-				.add(R.id.container, new PlaceholderFragment()).commit();
-		getSocket = new ConnectServer(context, "192.168.1.41");
+		connectDev = new ConnectDevice(context);
+//		getSupportFragmentManager().beginTransaction()
+//				.add(R.id.container, new PlaceholderFragment()).commit();
 		buttonWifi = (ToggleButton) findViewById(R.id.toggleButton1);
 		buttonWifi.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				if (buttonWifi.isChecked()) {
 					Log.d("isChecked", "try");
-					getSocket = new ConnectServer(context, "192.168.1.41");
+					Toast toast = Toast.makeText(getApplicationContext(), 
+							"IP: " + getIPAddress(true), Toast.LENGTH_SHORT); 
+							toast.show(); 
+					getSocket = new ConnectServer(context, "192.168.0.108");
 				} else {
 					Log.d("isChecked", "false");
 					getSocket.closeConnect();
@@ -83,6 +111,7 @@ public class MainActivity extends ActionBarActivity {
 		btn_backward = (Button) findViewById(R.id.backward);
 		btn_left = (Button) findViewById(R.id.left);
 		btn_right = (Button) findViewById(R.id.right);
+		buttonWork(false);
 		loadPref();
 		btn_forward.setOnTouchListener(new OnTouchListener() {
 
@@ -90,13 +119,13 @@ public class MainActivity extends ActionBarActivity {
 				if (event.getAction() == MotionEvent.ACTION_MOVE) {
 					motorLeft = -pwmBtnMotorLeft;
 					motorRight = pwmBtnMotorRight;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				} else if (event.getAction() == MotionEvent.ACTION_UP) {
 					motorLeft = 0;
 					motorRight = 0;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				}
 				return false;
 			}
@@ -107,13 +136,13 @@ public class MainActivity extends ActionBarActivity {
 				if (event.getAction() == MotionEvent.ACTION_MOVE) {
 					motorLeft = pwmBtnMotorLeft;
 					motorRight = pwmBtnMotorRight;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				} else if (event.getAction() == MotionEvent.ACTION_UP) {
 					motorLeft = 0;
 					motorRight = 0;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				}
 				return false;
 			}
@@ -124,13 +153,13 @@ public class MainActivity extends ActionBarActivity {
 				if (event.getAction() == MotionEvent.ACTION_MOVE) {
 					motorLeft = -pwmBtnMotorLeft;
 					motorRight = -pwmBtnMotorRight;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				} else if (event.getAction() == MotionEvent.ACTION_UP) {
 					motorLeft = 0;
 					motorRight = 0;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				}
 				return false;
 			}
@@ -138,57 +167,79 @@ public class MainActivity extends ActionBarActivity {
 
 		btn_backward.setOnTouchListener(new OnTouchListener() {
 			public boolean onTouch(View v, MotionEvent event) {
+
 				if (event.getAction() == MotionEvent.ACTION_MOVE) {
 					motorLeft = pwmBtnMotorLeft;
 					motorRight = -pwmBtnMotorRight;
 
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				} else if (event.getAction() == MotionEvent.ACTION_UP) {
 					motorLeft = 0;
 					motorRight = 0;
-					getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r"
-							+ commandRight + motorRight + "\r"));
+					connectDev.sendData(String.valueOf(commandLeft + motorLeft
+							+ "\r" + commandRight + motorRight + "\r"));
 				}
+
 				return false;
 			}
+
 		});
 
 		LightButton = (ToggleButton) findViewById(R.id.LightButton);
 		LightButton.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				if (LightButton.isChecked()) {
-					getSocket.sendData(String.valueOf(commandHorn + "1\r"));
-				} else {
-					getSocket.sendData(String.valueOf(commandHorn + "0\r"));
-				}
+
+				if (connectDev.isWork() == true) {
+					if (LightButton.isChecked()) {
+						Logging.doLog(TAG, "LightButton.isChecked() ",
+								"LightButton.isChecked() ");
+
+						buttonWork(true);
+						connectDev.sendData(String.valueOf(commandHorn + "1\r"));
+					} else {
+						connectDev.sendData(String.valueOf(commandHorn + "0\r"));
+
+						buttonWork(false);
+					}
+				} else
+					LightButton.setChecked(false);
 			}
 		});
-		
+		final MapView mapView = (MapView) findViewById(R.id.map);
+		// mapView.showBuiltInScreenButtons(true);
+
+		mMapController = mapView.getMapController();
+		// add listener
+		mMapController.getOverlayManager().getMyLocation()
+				.addMyLocationListener(this);
+		mMapController.setZoomCurrent(15);
+		mView = (RelativeLayout) findViewById(R.id.container);
 
 	}
 
-	public void addLog(String logs) {
-		final String log = logs;
-		// Handler h = new Handler(getApplicationContext().getMainLooper());
-		//
-		// h.post(new Runnable() {
-		// @Override
-		// public void run() {
-		if (log != null && text != null)
-			text.append(log);
-		else
-			Log.d("Main", "log null");
-		// }
-		// });
+	@Override
+	public void onMyLocationChange(MyLocationItem myLocationItem) {
+		// TODO Auto-generated method stub
+		// final TextView textView = new TextView(this);
+		text.setText(" Координаты [" + myLocationItem.getGeoPoint().getLat()
+				+ "," + myLocationItem.getGeoPoint().getLon() + "]" + "\n"
+				+ "Скорость: " + myLocationItem.getSpeed());
+		runOnUiThread(new Runnable() {
+			@Override
+			public void run() {
+				// TODO Auto-generated method stub
+				// mView.addView(textView);
+			}
+		});
 
 	}
 
 	public void forward(int motorLeft, int motorRight) {
 		this.motorLeft = motorLeft;
 		this.motorRight = motorRight;
-		getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r" + commandRight
-				+ motorRight + "\r"));
+		connectDev.sendData(String.valueOf(commandLeft + motorLeft + "\r"
+				+ commandRight + motorRight + "\r"));
 	}
 
 	public void back(int motorLeft, int motorRight) {
@@ -196,22 +247,22 @@ public class MainActivity extends ActionBarActivity {
 		this.motorLeft = motorLeft;
 		this.motorRight = -motorRight;
 
-		getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r" + commandRight
-				+ motorRight + "\r"));
+		connectDev.sendData(String.valueOf(commandLeft + motorLeft + "\r"
+				+ commandRight + motorRight + "\r"));
 	}
 
 	public void left(int motorLeft, int motorRight) {
 		this.motorLeft = motorLeft;
 		this.motorRight = motorRight;
-		getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r" + commandRight
-				+ motorRight + "\r"));
+		connectDev.sendData(String.valueOf(commandLeft + motorLeft + "\r"
+				+ commandRight + motorRight + "\r"));
 	}
 
 	public void right(int motorLeft, int motorRight) {
 		this.motorLeft = -motorLeft;
 		this.motorRight = -motorRight;
-		getSocket.sendData(String.valueOf(commandLeft + motorLeft + "\r" + commandRight
-				+ motorRight + "\r"));
+		connectDev.sendData(String.valueOf(commandLeft + motorLeft + "\r"
+				+ commandRight + motorRight + "\r"));
 	}
 
 	@Override
@@ -237,18 +288,33 @@ public class MainActivity extends ActionBarActivity {
 	/**
 	 * A placeholder fragment containing a simple view.
 	 */
-	public static class PlaceholderFragment extends Fragment {
+//	public static class PlaceholderFragment extends Fragment {
+//
+//		public PlaceholderFragment() {
+//		}
+//
+//		@Override
+//		public View onCreateView(LayoutInflater inflater, ViewGroup container,
+//				Bundle savedInstanceState) {
+//			View rootView = inflater.inflate(R.layout.fragment_main, container,
+//					false);
+//			return rootView;
+//		}
+//	}
 
-		public PlaceholderFragment() {
+	private void buttonWork(boolean sendWork) {
+		if (sendWork == false) {
+			btn_forward.setEnabled(false);
+			btn_backward.setEnabled(false);
+			btn_left.setEnabled(false);
+			btn_right.setEnabled(false);
+		} else {
+			btn_forward.setEnabled(true);
+			btn_backward.setEnabled(true);
+			btn_left.setEnabled(true);
+			btn_right.setEnabled(true);
 		}
 
-		@Override
-		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-				Bundle savedInstanceState) {
-			View rootView = inflater.inflate(R.layout.fragment_main, container,
-					false);
-			return rootView;
-		}
 	}
 
 	private void loadPref() {
@@ -263,54 +329,57 @@ public class MainActivity extends ActionBarActivity {
 	@Override
 	protected void onPause() {
 		super.onPause();
-		getSocket.onPause();
-//		// check if the device is already closed
-//		if (device != null) {
-//			try {
-//				device.close();
-//			} catch (IOException e) {
-//				// we couldn't close the device, but there's nothing we can do
-//				// about it!
-//			}
-//			// remove the reference to the device
-//			device = null;
-//		}
+		connectDev.onPause();
+
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
-		getSocket.onResume();
-//		// get a USB to Serial device object
-//		device = UsbSerialProber.acquire(usbManager);
-//		if (device == null) {
-//			// there is no device connected!
-//			Log.d(TAG, "No USB serial device connected.");
-//		} else {
-//			try {
-//				// open the device
-//				device.open();
-//				// set the communication speed
-//				device.setBaudRate(115200); // make sure this matches your
-//				// device's setting!
-//			} catch (IOException err) {
-//				Log.e(TAG, "Error setting up USB device: " + err.getMessage(),
-//						err);
-//				try {
-//					// something failed, so try closing the device
-//					device.close();
-//				} catch (IOException err2) {
-//					// couldn't close, but there's nothing more to do!
-//				}
-//				device = null;
-//				return;
-//			}
-//		}
+		connectDev.onResume();
+
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
+	}
+
+	/**
+	 * Get IP address from first non-localhost interface
+	 * 
+	 * @param ipv4
+	 *            true=return ipv4, false=return ipv6
+	 * @return address or empty string
+	 */
+	public static String getIPAddress(boolean useIPv4) {
+		try {
+			List<NetworkInterface> interfaces = Collections
+					.list(NetworkInterface.getNetworkInterfaces());
+			for (NetworkInterface intf : interfaces) {
+				List<InetAddress> addrs = Collections.list(intf
+						.getInetAddresses());
+				for (InetAddress addr : addrs) {
+					if (!addr.isLoopbackAddress()) {
+						String sAddr = addr.getHostAddress().toUpperCase();
+						boolean isIPv4 = InetAddressUtils.isIPv4Address(sAddr);
+						if (useIPv4) {
+							if (isIPv4)
+								return sAddr;
+						} else {
+							if (!isIPv4) {
+								int delim = sAddr.indexOf('%'); // drop ip6 port
+																// suffix
+								return delim < 0 ? sAddr : sAddr.substring(0,
+										delim);
+							}
+						}
+					}
+				}
+			}
+		} catch (Exception ex) {
+		} // for now eat exceptions
+		return "";
 	}
 
 	
