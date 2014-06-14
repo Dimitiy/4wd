@@ -12,6 +12,7 @@ import ru.yandex.yandexmapkit.MapView;
 import ru.yandex.yandexmapkit.overlay.location.MyLocationItem;
 import ru.yandex.yandexmapkit.overlay.location.OnMyLocationListener;
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
@@ -73,24 +74,21 @@ public class MainActivity extends ActionBarActivity implements
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
-		// ------------start Service------------
-		// startService(new Intent(MainActivity.this, LocationTracker.class));
-		// locationTrack = new LocationTracker();
 		// -----------define element-------------
 		text = (TextView) findViewById(R.id.textView1);
 		context = getApplicationContext();
 		connectDev = new ConnectDevice(context);
-//		getSupportFragmentManager().beginTransaction()
-//				.add(R.id.container, new PlaceholderFragment()).commit();
 		buttonWifi = (ToggleButton) findViewById(R.id.toggleButton1);
 		buttonWifi.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				if (buttonWifi.isChecked()) {
 					Log.d("isChecked", "try");
-					Toast toast = Toast.makeText(getApplicationContext(), 
-							"IP: " + getIPAddress(true), Toast.LENGTH_SHORT); 
-							toast.show(); 
+					Toast toast = Toast.makeText(getApplicationContext(),
+							"IP: " + getIPAddress(true), Toast.LENGTH_SHORT);
+					toast.show();
 					getSocket = new ConnectServer(context, "192.168.0.108");
+					// TODO Auto-generated method stub
+
 				} else {
 					Log.d("isChecked", "false");
 					getSocket.closeConnect();
@@ -225,11 +223,17 @@ public class MainActivity extends ActionBarActivity implements
 		text.setText(" Координаты [" + myLocationItem.getGeoPoint().getLat()
 				+ "," + myLocationItem.getGeoPoint().getLon() + "]" + "\n"
 				+ "Скорость: " + myLocationItem.getSpeed());
+		if (getSocket.isSocket() == true) {
+			getSocket.sendToServerData(" Координаты ["
+					+ myLocationItem.getGeoPoint().getLat() + ","
+					+ myLocationItem.getGeoPoint().getLon() + "]" + "\n"
+					+ "Скорость: " + myLocationItem.getSpeed());
+			Logging.doLog(TAG, "coordinates" + myLocationItem.getGeoPoint().getLat(), "coordinates" + myLocationItem.getGeoPoint().getLat());
+		}
 		runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
 				// TODO Auto-generated method stub
-				// mView.addView(textView);
 			}
 		});
 
@@ -288,19 +292,19 @@ public class MainActivity extends ActionBarActivity implements
 	/**
 	 * A placeholder fragment containing a simple view.
 	 */
-//	public static class PlaceholderFragment extends Fragment {
-//
-//		public PlaceholderFragment() {
-//		}
-//
-//		@Override
-//		public View onCreateView(LayoutInflater inflater, ViewGroup container,
-//				Bundle savedInstanceState) {
-//			View rootView = inflater.inflate(R.layout.fragment_main, container,
-//					false);
-//			return rootView;
-//		}
-//	}
+	// public static class PlaceholderFragment extends Fragment {
+	//
+	// public PlaceholderFragment() {
+	// }
+	//
+	// @Override
+	// public View onCreateView(LayoutInflater inflater, ViewGroup container,
+	// Bundle savedInstanceState) {
+	// View rootView = inflater.inflate(R.layout.fragment_main, container,
+	// false);
+	// return rootView;
+	// }
+	// }
 
 	private void buttonWork(boolean sendWork) {
 		if (sendWork == false) {
@@ -382,5 +386,4 @@ public class MainActivity extends ActionBarActivity implements
 		return "";
 	}
 
-	
 }

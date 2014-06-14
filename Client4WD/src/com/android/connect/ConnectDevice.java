@@ -105,8 +105,8 @@ public class ConnectDevice {
 
 			} catch (IOException e) {
 				Logging.doLog(TAG,
-						"couldn't write color bytes to serial device",
-						"couldn't write color bytes to serial device");
+						"couldn't write bytes to serial device",
+						"couldn't write bytes to serial device");
 			}
 		} else {
 			Logging.doLog(TAG, "device = null", "device = null");

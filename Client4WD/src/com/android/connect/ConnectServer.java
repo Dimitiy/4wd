@@ -8,32 +8,43 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 
+import com.android.client4wd.MainActivity;
+import com.android.util.Logging;
+
 import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.util.Log;
+import android.widget.Toast;
 
-public class ConnectServer {
+public class ConnectServer  {
 	String address = "0.0.0.0";
 	Socket socket;
 	ConnectDevice connectDev;
 	private Context mContext;
-	
+	String line = null;
+	boolean isSocket = false;
+	InputStream sin;
+	OutputStream sout;
+	DataInputStream in;
+	DataOutputStream out;
 	public final static String TAG = "ConnectServer";
 
 	// private Context mContext;
-	public ConnectServer(Context context,String address) {
+	public ConnectServer(Context context, String address) {
 		// TODO Автоматически созданная заглушка конструктора
 		this.address = address;
 		this.mContext = context;
+
 		connectDev = new ConnectDevice(mContext);
 		Connect connect = new Connect();
 		connect.execute(address);
 		// Get UsbManager from Android.
-		
+
 	}
 
 	public void connect(String address) {
-		Log.d("ConnectServ", "connect");
+		Logging.doLog(TAG, "connect", "connect");
 		int serverPort = 10082; // здесь обязательно нужно указать порт к
 								// которому привязывается сервер.
 		this.address = address; // это IP-адрес компьютера, где исполняется наша
@@ -48,65 +59,110 @@ public class ConnectServer {
 																	// отображает
 																	// вышеописанный
 																	// IP-адрес.
-			Log.d("ConnectServ",
+			Logging.doLog(TAG, "Any of you heard of a socket with IP address "
+					+ address + " and port " + serverPort + "?",
 					"Any of you heard of a socket with IP address " + address
 							+ " and port " + serverPort + "?");
 			socket = new Socket(ipAddress, serverPort); // создаем сокет
 														// используя
 														// IP-адрес и
 														// порт сервера.
-			Log.d("ConnectServ1", "Yes! I just got hold of the program.");
+			isSocket = true;
+			Logging.doLog(TAG, "Yes! I just got hold of the program.",
+					"Yes! I just got hold of the program.");
 
 			// Берем входной и выходной потоки сокета, теперь можем получать и
 			// отсылать данные клиентом.
-			InputStream sin = socket.getInputStream();
-			OutputStream sout = socket.getOutputStream();
+			sin = socket.getInputStream();
+			sout = socket.getOutputStream();
 
 			// Конвертируем потоки в другой тип, чтоб легче обрабатывать
 			// текстовые сообщения.
-			DataInputStream in = new DataInputStream(sin);
-			DataOutputStream out = new DataOutputStream(sout);
-
-			// // Создаем поток для чтения с клавиатуры.
-			// BufferedReader keyboard = new BufferedReader(new
-			// InputStreamReader(
-			// System.in));
-			String line = null;
-			Log.d("ConnectServ",
+			in = new DataInputStream(sin);
+			out = new DataOutputStream(sout);
+			Logging.doLog(
+					TAG,
+					"Type in something and press enter. Will send it to the server and tell ya what it thinks.",
 					"Type in something and press enter. Will send it to the server and tell ya what it thinks.");
 
 			while (true) {
-				line = in.readUTF(); // ждем пока сервер отошлет строку текста.
-				connectDev.onResume();
-				connectDev.sendData(String.valueOf(line));
-				Log.d("ConnectServ",
-						"The server was very polite. It sent me this : " + line);
-				Log.d("ConnectServ",
-						"Looks like the server is pleased with us. Go ahead and enter more lines.");
-				// line = keyboard.readLine(); // ждем пока пользователь введет
-				// // что-то и нажмет кнопку Enter.
-				System.out.println("Sending this line to the server...");
-				out.writeUTF(line); // отсылаем введенную строку текста серверу.
-				out.flush(); // заставляем поток закончить передачу данных.
-
+				line = in.readUTF();
+				if (String.valueOf(line).equals("END")) {
+					Logging.doLog(TAG, line, line);
+					out.writeUTF(line); // отсылаем введенную строку текста
+										// серверу.
+					out.flush(); // заставляем поток закончить передачу данных.
+					closeConnect();
+					return;
+				} else
+					sendDataToArduino(line);
 			}
 		} catch (Exception x) {
 			x.printStackTrace();
+			isSocket = false;
+			
 		}
+	}
+
+//	public void getDataFromServer() {
+//		try {
+//			line = in.readUTF();
+//			if (String.valueOf(line).equals("END")) {
+//				Logging.doLog(TAG, line, line);
+//				out.writeUTF(line); // отсылаем введенную строку текста
+//									// серверу.
+//				out.flush(); // заставляем поток закончить передачу данных.
+//				closeConnect();
+//				return;
+//			} else
+//				sendDataToArduino(line);
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} // ждем пока сервер отошлет строку текста.
+//
+//	}
+
+	public void sendToServerData(String line) {
+		try {
+			if (socket != null) {
+				out.writeUTF(line);
+				Logging.doLog(TAG, line, line);
+				
+				// отсылаем введенную строку текста серверу.
+				out.flush(); // заставляем поток закончить передачу данных.
+			}
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private void sendDataToArduino(String line) {
+		connectDev.onResume();
+		connectDev.sendData(String.valueOf(line));
+		Logging.doLog(TAG, "The server was very polite. It sent me this : "
+				+ line, "The server was very polite. It sent me this : " + line);
 	}
 
 	public void closeConnect() {
 		try {
 			if (socket != null) {
+				Logging.doLog(TAG, "socket.close", "socket.close");
+				isSocket = false;
 				socket.close();
 			} else
-				Log.d("ConnectService", "nullSocket");
+				Logging.doLog(TAG, "nullSocket", "nullSocket");
 		} catch (IOException e) {
 			// TODO Автоматически созданный блок catch
 			e.printStackTrace();
 		}
+		Toast.makeText(mContext, "Соединение разорвано!", Toast.LENGTH_LONG).show();
 	}
-
+	public boolean isSocket() {
+		return isSocket;
+		
+	}
 	private class Connect extends AsyncTask<String, Void, Void> {
 
 		@Override
