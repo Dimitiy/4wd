@@ -98,6 +98,7 @@ public class ConnectDevice {
 
 			}
 		}
+		
 		// send the color to the serial device
 		if (device != null) {
 			try {

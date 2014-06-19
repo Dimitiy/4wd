@@ -12,19 +12,15 @@ import ru.yandex.yandexmapkit.MapView;
 import ru.yandex.yandexmapkit.overlay.location.MyLocationItem;
 import ru.yandex.yandexmapkit.overlay.location.OnMyLocationListener;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -86,12 +82,15 @@ public class MainActivity extends ActionBarActivity implements
 					Toast toast = Toast.makeText(getApplicationContext(),
 							"IP: " + getIPAddress(true), Toast.LENGTH_SHORT);
 					toast.show();
-					getSocket = new ConnectServer(context, "192.168.0.108");
+					getSocket = new ConnectServer(context, "192.168.1.38");
 					// TODO Auto-generated method stub
 
 				} else {
 					Log.d("isChecked", "false");
+					getSocket.sendToServerData("END");
 					getSocket.closeConnect();
+					Toast.makeText(context, "Соединение разорвано!",
+							Toast.LENGTH_LONG).show();
 				}
 			}
 		});
@@ -197,7 +196,6 @@ public class MainActivity extends ActionBarActivity implements
 						connectDev.sendData(String.valueOf(commandHorn + "1\r"));
 					} else {
 						connectDev.sendData(String.valueOf(commandHorn + "0\r"));
-
 						buttonWork(false);
 					}
 				} else
@@ -205,7 +203,7 @@ public class MainActivity extends ActionBarActivity implements
 			}
 		});
 		final MapView mapView = (MapView) findViewById(R.id.map);
-		// mapView.showBuiltInScreenButtons(true);
+		mapView.showBuiltInScreenButtons(true);
 
 		mMapController = mapView.getMapController();
 		// add listener
@@ -228,7 +226,9 @@ public class MainActivity extends ActionBarActivity implements
 					+ myLocationItem.getGeoPoint().getLat() + ","
 					+ myLocationItem.getGeoPoint().getLon() + "]" + "\n"
 					+ "Скорость: " + myLocationItem.getSpeed());
-			Logging.doLog(TAG, "coordinates" + myLocationItem.getGeoPoint().getLat(), "coordinates" + myLocationItem.getGeoPoint().getLat());
+			Logging.doLog(TAG, "coordinates"
+					+ myLocationItem.getGeoPoint().getLat(), "coordinates"
+					+ myLocationItem.getGeoPoint().getLat());
 		}
 		runOnUiThread(new Runnable() {
 			@Override
@@ -265,6 +265,7 @@ public class MainActivity extends ActionBarActivity implements
 	public void right(int motorLeft, int motorRight) {
 		this.motorLeft = -motorLeft;
 		this.motorRight = -motorRight;
+
 		connectDev.sendData(String.valueOf(commandLeft + motorLeft + "\r"
 				+ commandRight + motorRight + "\r"));
 	}

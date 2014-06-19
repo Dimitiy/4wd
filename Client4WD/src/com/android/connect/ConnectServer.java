@@ -8,16 +8,13 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 
-import com.android.client4wd.MainActivity;
-import com.android.util.Logging;
-
 import android.content.Context;
-import android.content.Intent;
 import android.os.AsyncTask;
-import android.util.Log;
 import android.widget.Toast;
 
-public class ConnectServer  {
+import com.android.util.Logging;
+
+public class ConnectServer {
 	String address = "0.0.0.0";
 	Socket socket;
 	ConnectDevice connectDev;
@@ -100,35 +97,15 @@ public class ConnectServer  {
 		} catch (Exception x) {
 			x.printStackTrace();
 			isSocket = false;
-			
 		}
 	}
-
-//	public void getDataFromServer() {
-//		try {
-//			line = in.readUTF();
-//			if (String.valueOf(line).equals("END")) {
-//				Logging.doLog(TAG, line, line);
-//				out.writeUTF(line); // отсылаем введенную строку текста
-//									// серверу.
-//				out.flush(); // заставляем поток закончить передачу данных.
-//				closeConnect();
-//				return;
-//			} else
-//				sendDataToArduino(line);
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		} // ждем пока сервер отошлет строку текста.
-//
-//	}
 
 	public void sendToServerData(String line) {
 		try {
 			if (socket != null) {
 				out.writeUTF(line);
 				Logging.doLog(TAG, line, line);
-				
+
 				// отсылаем введенную строку текста серверу.
 				out.flush(); // заставляем поток закончить передачу данных.
 			}
@@ -146,10 +123,11 @@ public class ConnectServer  {
 	}
 
 	public void closeConnect() {
+		isSocket = false;
+
 		try {
 			if (socket != null) {
 				Logging.doLog(TAG, "socket.close", "socket.close");
-				isSocket = false;
 				socket.close();
 			} else
 				Logging.doLog(TAG, "nullSocket", "nullSocket");
@@ -157,12 +135,14 @@ public class ConnectServer  {
 			// TODO Автоматически созданный блок catch
 			e.printStackTrace();
 		}
-		Toast.makeText(mContext, "Соединение разорвано!", Toast.LENGTH_LONG).show();
+
 	}
+
 	public boolean isSocket() {
 		return isSocket;
-		
+
 	}
+
 	private class Connect extends AsyncTask<String, Void, Void> {
 
 		@Override
